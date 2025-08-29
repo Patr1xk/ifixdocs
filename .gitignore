@@ -1,11 +1,37 @@
-# Python
+# --- Python ---
 venv/
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+*.sqlite3
+db.sqlite3
 
-# Node
+# --- Node / Frontend ---
 node_modules/
 dist/
+build/
+.npm/
+.yarn/
+.next/
+out/
 
-# Environment
+# --- Environment / Secrets ---
 .env
+.env.*
+backend/.env
+frontend/.env
+
+# --- Logs & Temp ---
+*.log
+*.tmp
+*.swp
+
+# --- IDE / Editor ---
+.vscode/
+.idea/
+*.iml
+
+# --- OS / System ---
+.DS_Store
+Thumbs.db

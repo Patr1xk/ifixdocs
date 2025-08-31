@@ -23,9 +23,68 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.get("/")
-def root():
-    return {"message": "iFixDocs backend is running."}
+# -----------------------------
+# STATIC TEMPLATES
+# -----------------------------
+templates = {
+    "simple": """## Description Template
+    - Function/Class Purpose: 
+    - Inputs: 
+    - Outputs: 
+    - Notes: 
+    """,
+        "google": '''"""
+    Function/Class Purpose: Explain what this does.
+
+    Args:
+        param1 (int): description.
+        param2 (str): description.
+
+    Returns:
+        bool: description.
+
+    Raises:
+        ValueError: explanation of when/why error is raised.
+
+    Notes:
+        Any special considerations.
+    """''',
+        "numpy": '''"""
+    Function/Class Purpose.
+
+    Parameters
+    ----------
+    param1 : int
+        Description.
+    param2 : str
+        Description.
+
+    Returns
+    -------
+    bool
+        Description.
+
+    Raises
+    ------
+    ValueError
+        Explanation.
+
+    Notes
+    -----
+    Any additional remarks.
+    """''',
+        "custom": """## Documentation Template
+    - Purpose:
+    - Parameters:
+    - name (type): description
+    - Returns: type – description
+    - Raises: error – description
+    - Example:
+    ```python
+    >>> function_name(1, "abc")
+    True
+    """
+}
 
 class RepoURL(BaseModel):
     repo_url: str
@@ -33,6 +92,29 @@ class RepoURL(BaseModel):
 class EditDoc(BaseModel):
     file_name: str
     updated_content: str
+
+class InsertTemplate(BaseModel):
+    file_name: str
+    target: str        # function/class name where to insert
+    template_name: str # google, numpy, etc.
+    mode: str = "inline"  # future: "inline" vs "append"
+    existing_content: str
+
+@app.get("/")
+def root():
+    return {"message": "iFixDocs Backend is running."}
+
+@app.get("/templates")
+def list_templates():
+    """Return all available template keys."""
+    return {"templates": list(templates.keys())}
+
+@app.get("/templates/{template_name}")
+def get_template(template_name: str):
+    if template_name in templates:
+        return {"content": templates[template_name]}
+    else:
+        raise HTTPException(status_code=404, detail="Template not found")
 
 # Helper function for extracting code info
 def extract_code_info(file_path: str):
@@ -148,6 +230,29 @@ def generate_docs(data: RepoURL):
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
+
+@app.post("/insert-template/")
+def insert_template(data: InsertTemplate):
+    if data.template_name not in templates:
+        raise HTTPException(status_code=404, detail="Template not found")
+
+    template = templates[data.template_name]
+
+    # simple inline replacement: find the target header and inject below it
+    pattern = rf"(### {data.target}\n(?:.*\n)*)"
+    replacement = rf"\1{template}\n"
+
+    updated = re.sub(pattern, replacement, data.existing_content, count=1)
+
+    if updated == data.existing_content:
+        raise HTTPException(status_code=400, detail="Target not found in file")
+
+    return {
+        "status": "success",
+        "file": data.file_name,
+        "content": updated
+    }
+
 
 # Endpoint: save edited docs
 @app.post("/edit-doc/")
